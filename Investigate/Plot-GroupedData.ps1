@@ -1,7 +1,7 @@
 ﻿<#
 PS4DS: Visually Investigate Grouped Data
 Author: Eric K. Miller
-Last updated: 3 December 2025
+Last updated: 5 December 2025
 
 This script contains a PowerShell function to plot grouped data,
 specifically bar plots, column plots, and pie plots. It is part of
@@ -20,7 +20,7 @@ function Show-GroupedData {
         Plot grouped values from a DataObject's nominal fields.
 
     .DESCRIPTION
-        This function groups a nominal field's values from a DataObject
+        This function groups values from a DataObject's nominal fields
     to display one of bar, column, or pie chart. It uses optional
     parameters to customize the PowerShell chart's properties.
     
@@ -48,6 +48,10 @@ function Show-GroupedData {
     .PARAMETER SeriesPalette (Optional)
         A ValidateSet of color palettes to specify the color of the pie
     chart (default is 'Excel').
+
+    .PARAMETER Save (Optional)
+        A ValidateSet of image file types if the user wants to save the
+    chart.
         
     .EXAMPLE
         $GroupedPlotParams = @{
@@ -70,7 +74,7 @@ function Show-GroupedData {
         [string]$ChartType,
 
         [Parameter()]
-        [string]$ChartTitle = 'Value Counts of Numeric Fields',
+        [string]$ChartTitle = "Value Counts of Nominal Field $GroupProperty",
 
         [Parameter()]
         [int]$NumCategories = 10,
@@ -82,7 +86,11 @@ function Show-GroupedData {
         [ValidateSet('None', 'Bright', 'Grayscale', 'Excel', 'Light',
             'Pastel', 'EarthTones', 'SemiTransparent', 'Berry',
             'Chocolate', 'Fire', 'SeaGreen', 'BrightPastel')]
-        [string]$SeriesPalette = 'Excel'
+        [string]$SeriesPalette = 'Excel',
+
+        [Parameter()]
+        [ValidateSet('Jpeg', 'Png', 'Bmp', 'Tiff')]
+        [string]$Save
     )
 
     # Create chart object and set its properties
@@ -111,8 +119,7 @@ function Show-GroupedData {
     switch ($ChartType) {
         'Bar' {
             $Series = New-Object Series
-            $ChartTypes = [SeriesChartType]
-            $Series.ChartType = $ChartTypes::$ChartType
+            $Series.ChartType = [SeriesChartType]::$ChartType
 
             # Re-sort so largest bar is on top
             $DataObject_Grouped = $DataObject_Grouped | Sort-Object -Property Count
@@ -130,8 +137,7 @@ function Show-GroupedData {
         }
         'Column' {
             $Series = New-Object Series
-            $ChartTypes = [SeriesChartType]
-            $Series.ChartType = $ChartTypes::$ChartType
+            $Series.ChartType = [SeriesChartType]::$ChartType
 
             $Series.Points.DataBindXY($groupValues, $groupCounts)
 
@@ -145,8 +151,7 @@ function Show-GroupedData {
         'Pie' {
             # https://learn.microsoft.com/en-us/previous-versions/dd456674(v=vs.140)
             $Series = New-Object Series
-            $ChartTypes = [SeriesChartType]
-            $Series.ChartType = $ChartTypes::$ChartType
+            $Series.ChartType = [SeriesChartType]::$ChartType
 
             $Series.Points.DataBindXY($groupValues, $groupCounts)
             
@@ -189,13 +194,45 @@ function Show-GroupedData {
     $ChartArea.AxisY.MajorGrid.LineWidth     = 0
     $ChartArea.AxisY.LabelStyle.ForeColor = $label_fontColor
 
-    $ChartArea.BackColor = 'LightGray'
+    $ChartArea.BackColor = 'White'
     
     # Chart adjusts to fit the entire container when the Form is resized
     $Chart.Dock = 'Fill'
 
-    #$Chart.SaveImage(...)
+    if ($Save) {
+        $SaveFileDialog = New-Object SaveFileDialog
 
+        switch ($Save) {
+            'Jpeg' {
+                $SaveFileDialog.Filter = 'JPEG Image File (*.jpeg) | *.jpeg'
+                $ChartImageFormat = 0
+            }
+            'Png' {
+                $SaveFileDialog.Filter = 'PNG Image File (*.png) | *.png'
+                $ChartImageFormat = 1
+            }
+            'Bmp' {
+                $SaveFileDialog.Filter = 'Windows Bitmap Image File (*.bmp) | *.bmp'
+                $ChartImageFormat = 2
+            }
+            'Tiff' {
+                $SaveFileDialog.Filter = 'Tag Image File Format (*.tiff) | *.tiff'
+                $ChartImageFormat = 3
+            }
+        }
+
+        $SaveFileDialog.ShowDialog() | Out-Null
+        $imgFile = $SaveFileDialog.FileName
+
+        if ($imgFile) {
+            $Chart.SaveImage($imgFile, $ChartImageFormat)
+            Write-Host "Chart saved at: $imgFile"
+        }
+        else {
+            Write-Host "Image file not saved."
+        }
+    }
+    
     $Form.Add_Shown({$Form.Activate()})  # ensures the Form gets focus
     $Form.ShowDialog()
     #endregion
