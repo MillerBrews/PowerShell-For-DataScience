@@ -1,7 +1,7 @@
 ﻿<#
 PS4DS: Visually Investigate Statistical Data
 Author: Eric K. Miller
-Last updated: 2 December 2025
+Last updated: 5 December 2025
 
 This script contains a PowerShell function to plot statistical data,
 specifically boxplots and histograms. It is part of the
@@ -50,6 +50,10 @@ function Show-BoxPlotData {
     .PARAMETER BoxSeriesPalette (Optional)
         A ValidateSet that enables the user to set the BoxPlot color
     palette (default is 'BrightPastel').
+
+    .PARAMETER Save (Optional)
+        A ValidateSet of image file types if the user wants to save the
+    chart.
     
     .EXAMPLE
         $BoxPlotParams = @{
@@ -62,16 +66,30 @@ function Show-BoxPlotData {
     [CmdletBinding(SupportsShouldProcess)]
     [Alias('boxplot')]
     param (
-        [Parameter(Mandatory)]$DataObject,
-        [Parameter()][string]$ChartTitle = 'Distribution of Numeric Fields',
-        [Parameter()][string]$BoxPlotPercentile        = '25',    # default
-        [Parameter()][string]$BoxPlotWhiskerPercentile = '10',    # default
-        [Parameter()][string]$BoxPlotShowUnusualValues = 'True',  # default
+        [Parameter(Mandatory)]
+        $DataObject,
+
+        [Parameter()]
+        [string]$ChartTitle = 'Distribution of Numeric Fields',
+
+        [Parameter()]
+        [string]$BoxPlotPercentile        = '25',    # default
+        
+        [Parameter()]
+        [string]$BoxPlotWhiskerPercentile = '10',    # default
+
+        [Parameter()]
+        [string]$BoxPlotShowUnusualValues = 'True',  # default
+
         [Parameter()]
         [ValidateSet('None', 'Bright', 'Grayscale', 'Excel', 'Light',
         'Pastel', 'EarthTones', 'SemiTransparent', 'Berry', 'Chocolate',
         'Fire', 'SeaGreen', 'BrightPastel')]
-        [string]$BoxSeriesPalette = 'BrightPastel'
+        [string]$BoxSeriesPalette = 'BrightPastel',
+
+        [Parameter()]
+        [ValidateSet('Jpeg', 'Png', 'Bmp', 'Tiff')]
+        [string]$Save
     )
     
     #region Boilerplate charting objects creation
@@ -189,7 +207,41 @@ function Show-BoxPlotData {
     # Chart adjusts to fit the entire container when the Form is resized
     $Chart.Dock = 'Fill'
 
+    if ($Save) {
+        $SaveFileDialog = New-Object SaveFileDialog
+
+        switch ($Save) {
+            'Jpeg' {
+                $SaveFileDialog.Filter = 'JPEG Image File (*.jpeg) | *.jpeg'
+                $ChartImageFormat = 0
+            }
+            'Png' {
+                $SaveFileDialog.Filter = 'PNG Image File (*.png) | *.png'
+                $ChartImageFormat = 1
+            }
+            'Bmp' {
+                $SaveFileDialog.Filter = 'Windows Bitmap Image File (*.bmp) | *.bmp'
+                $ChartImageFormat = 2
+            }
+            'Tiff' {
+                $SaveFileDialog.Filter = 'Tag Image File Format (*.tiff) | *.tiff'
+                $ChartImageFormat = 3
+            }
+        }
+
+        $SaveFileDialog.ShowDialog() | Out-Null
+        $imgFile = $SaveFileDialog.FileName
+
+        if ($imgFile) {
+            $Chart.SaveImage($imgFile, $ChartImageFormat)
+            Write-Host "Chart saved at: $imgFile"
+        }
+        else {
+            Write-Host "Image file not saved."
+        }
+    }
+
     $Form.Add_Shown({$Form.Activate()})  # ensures the Form gets focus
-    $Form.ShowDialog()
+    $Form.ShowDialog() | Out-Null
     #endregion
 }
